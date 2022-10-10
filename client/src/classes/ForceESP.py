@@ -16,6 +16,7 @@ from classes.helpers.BLECharacteristic import BLECharacteristic
 RECONNECT_ATTEMPTS = 5
 
 DEFAULT_MEASUREMENT_INTERVAL = 10
+DEFAULT_MEASUREMENT_LABEL = 'measurement'
 DEFAULT_TARA_READINGS = 15
 
 TARA_CHAR_UUID = '00000000-0000-0000-0000-000000001001'
@@ -25,40 +26,52 @@ FORCE_CHAR_UUID = '00000000-0000-0000-0000-000000001312'
 
 c = Colors()
 
-CMDS = "[tara [n], measure [s], monitor, calibrate, exit]"
+CMDS = "[tara [n], measure [s], monitor, calibrate, label [l], exit]"
 
 class ForceESP:
 	def __init__(self, device) -> None:
 		self.device = device
+		self.measurementLabel = DEFAULT_MEASUREMENT_LABEL
+		self.measurementIndex = 1
 
 	# command functions -----------------------------------------------------------------------------------------------
-	async def measure(self, *pars) -> None:
+	async def cmdMeasure(self, pInterval, *pars) -> None:
 		try:
-			measurementInterval = float(pars[0])
+			interval = float(pInterval)
 		except:
-			measurementInterval = DEFAULT_MEASUREMENT_INTERVAL
+			interval = DEFAULT_MEASUREMENT_INTERVAL
 
-		measurement = Measurement(self, measurementInterval)
-
-		await self.measureChar.writeValue(True)
-		await measurement.start()
-		await self.measureChar.writeValue(False)
+		measurement = Measurement(self, interval, self.measurementLabel, self.measurementIndex)
+		await measurement.run()
 
 		measurement.writeToFile().plot()
 		print('max:', round(measurement.getPeak('force'), 2))
+		self.measurementIndex +=1
 
-	async def tara(self, *pars) -> None:
+	async def cmdLabel(self, label, *pars):
+		if label != None and label != self.measurementLabel:
+			self.measurementLabel = label
+			self.measurementIndex = 1
+
+	async def cmdTara(self, *pars) -> None:
 		taraReadings = int(pars[0]) if pars[0] else DEFAULT_TARA_READINGS
 		print(c.blue('Tara, n=' + str(taraReadings)))
 		await self.taraChar.writeValue(taraReadings)
 
 	# TODO - non-functional
-	async def calibrate(self, *pars) -> None:
+	async def cmdCalibrate(self, *pars) -> None:
 		print(c.blue('calibrating'))
 		await self.calibrateChar.writeValue(9072.6, float)
 
-	async def monitor(self, *pars) -> None:
+	async def cmdMonitor(self, *pars) -> None:
 		print(c.blue('monitor'))
+
+	# public ----------------------------------------------------------------------------------------------------------
+	async def startMeasure(self):
+		await self.measureChar.writeValue(True)
+
+	async def stopMeasure(self):
+		await self.measureChar.writeValue(False)
 
 	# main loop -------------------------------------------------------------------------------------------------------
 	async def start(self) -> None:
@@ -93,7 +106,7 @@ class ForceESP:
 
 						# user input loop
 						while (not exit):
-							inp = input(c.bold("forceESP@[") + c.yellow(client.address) + c.bold(']$ ')).split(' ')
+							inp = input(c.bold(self.measurementLabel + '@[') + c.yellow(client.address) + c.bold(']$ ')).split(' ')
 							inp.extend([None for _ in range(2)])
 							[cd, *parameters] = inp[0:3]
 
@@ -101,13 +114,15 @@ class ForceESP:
 							if cd == 'exit' or cd == 'x':
 								exit = True
 							elif cd == 'tara' or cd == 't':
-								await self.tara(*parameters)
+								await self.cmdTara(*parameters)
 							elif cd == 'measure' or cd == 'm':
-								await self.measure(*parameters)
+								await self.cmdMeasure(*parameters)
 							elif cd == 'monitor':
-								await self.monitor(*parameters)
+								await self.cmdMonitor(*parameters)
 							elif cd == 'calibrate' or cd == 'c':
-								await self.calibrate(*parameters)
+								await self.cmdCalibrate(*parameters)
+							elif cd == 'label' or cd == 'l':
+								await self.cmdLabel(*parameters)
 							else:
 								print(c.red('enter valid command ') + CMDS)
 

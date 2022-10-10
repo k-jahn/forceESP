@@ -12,20 +12,30 @@ from classes.helpers.Colors import Colors
 c = Colors()
 
 class Measurement:
-	def __init__(self, forceEsp, measurementInterval) -> None:
+	def __init__(self, forceEsp, measurementInterval: float, label: str, index: int) -> None:
 		self.measurementInterval = measurementInterval
+		self.label = label
+		self.index = index
 		self.headers = ['time', 'force']
 		self.dataset = []
 		self.forceEsp = forceEsp
+		self.hasRun = False
 
 	# gathers data from forceEsp
-	async def start(self) -> None:
+	async def run(self) -> None:
+		assert not self.hasRun
+		self.hasRun = True
+	
 		relativeTime = 0
-		startTime = time()
-		self.timestamp = str(datetime.now())
+		startTime = None
+		self.timestamp = str(datetime.now()).replace(' ', '_')
+		self.name = '_'.join([self.timestamp, self.label, str(self.index)])
 
 		print(c.blue('measuring, Δt=' + str(self.measurementInterval)))
+		await self.forceEsp.startMeasure()
 		while relativeTime <= self.measurementInterval:
+			# start clock with first measurement
+			startTime = time() if startTime == None else startTime
 			await self.forceEsp.measureEvent.wait()
 			relativeTime = self.forceEsp.measureData["time"] - startTime
 			print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
@@ -33,11 +43,12 @@ class Measurement:
 				relativeTime,
 				self.forceEsp.measureData["force"],
 			])
+		await self.forceEsp.stopMeasure()
 		print('done                      ')
 		return self
 
 	def writeToFile(self):
-		self.fileName = 'measurements/' + self.timestamp + '.csv'
+		self.fileName = 'measurements/' + self.name + '.csv'
 		file = open(self.fileName, 'x')
 		file.write(','.join(self.headers) + '\n')
 		for point in self.dataset:
@@ -51,7 +62,7 @@ class Measurement:
 		subprocess.Popen([
 			'./src/plot.sh',
 			self.fileName,
-			self.timestamp,
+			self.name.replace('_', ' '),
 			str(round(self.getPeak(), 2)),
 			str(self.measurementInterval),
 		])
