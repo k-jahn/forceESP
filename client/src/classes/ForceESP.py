@@ -72,10 +72,10 @@ class ForceESP:
 						# reset attempts
 						attempts = 0
 
-						self.taraChar = BLECharacteristic(client, TARA_CHAR_UUID)
-						self.calibrateChar = BLECharacteristic(client, CALIBRATE_CHAR_UUID)
-						self.measureChar = BLECharacteristic(client, MEASURE_CHAR_UUID)
-						self.forceChar = BLECharacteristic(client, FORCE_CHAR_UUID)
+						self.taraChar = BLECharacteristic(client, TARA_CHAR_UUID, int)
+						self.calibrateChar = BLECharacteristic(client, CALIBRATE_CHAR_UUID, float)
+						self.measureChar = BLECharacteristic(client, MEASURE_CHAR_UUID, bool)
+						self.forceChar = BLECharacteristic(client, FORCE_CHAR_UUID, float)
 						print("Connected to ESP, enter command " + c.bold(CMDS))
 
 						# start force tracker
@@ -84,8 +84,7 @@ class ForceESP:
 							"time": time(),
 							"force": 0,
 						}
-						def forceCallback(char, data: bytearray):
-							[ force ] = struct.unpack('f', data)
+						def forceCallback(force):
 							self.measureData["force"] = force
 							self.measureData["time"] = time()
 							self.measureEvent.set()

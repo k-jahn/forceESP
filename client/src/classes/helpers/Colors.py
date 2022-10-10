@@ -1,3 +1,7 @@
+# Color helper Class
+#
+# formats colored output via ANSI
+
 class Colors:
 	def __init__(self) -> None:
 		pass
