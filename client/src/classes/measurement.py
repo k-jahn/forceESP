@@ -1,12 +1,12 @@
-# Force ESP Measurement Class
-#
-# filesystem i/o
-# processing/analysis
+"""Force ESP Measurement Class
+
+filesystem i/o
+processing/analysis"""
 
 import subprocess
 from datetime import datetime
 from time import time
-from classes.helpers.Colors import Colors
+from classes.helpers.colors import Colors
 
 c = Colors()
 
@@ -20,11 +20,15 @@ class Measurement:
 		self.forceEsp = forceEsp
 		self.hasRun = False
 
+		self.name: str
+		self.timestamp: str
+		self.fileName: str
+
 	# gathers data from forceEsp
 	async def run(self) -> None:
 		assert not self.hasRun
 		self.hasRun = True
-	
+
 		relativeTime = 0
 		startTime = None
 		self.timestamp = str(datetime.now()).replace(' ', '_')
@@ -35,7 +39,7 @@ class Measurement:
 		while relativeTime <= self.measurementInterval:
 			await self.forceEsp.measureEvent.wait()
 			# start clock with first measurement
-			startTime = time() if startTime == None else startTime
+			startTime = time() if startTime is None else startTime
 			relativeTime = self.forceEsp.measureData["time"] - startTime
 			print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
 			self.dataset.append([
@@ -48,7 +52,7 @@ class Measurement:
 
 	def writeToFile(self):
 		self.fileName = 'measurements/' + self.name + '.csv'
-		file = open(self.fileName, 'x')
+		file = open(self.fileName, 'x', encoding='UTF-8')
 		file.write(','.join(self.headers) + '\n')
 		for point in self.dataset:
 			file.write(','.join([str(value) for value in point]) + '\n')
@@ -57,7 +61,8 @@ class Measurement:
 		return self
 
 	def plot(self):
-		if (self.fileName == None): self.writeToFile()
+		if self.fileName is None:
+			self.writeToFile()
 		subprocess.Popen([
 			'./src/plot.sh',
 			self.fileName,
@@ -70,12 +75,12 @@ class Measurement:
 	def getPeak(self, column: int or str = 1) -> float:
 		index = None
 		try:
-			if type(column) is int and column in range(len(self.headers)):
+			if isinstance(column, int) and column in range(len(self.headers)):
 				index = column
-			elif type(column) is str:
+			elif isinstance(column, str):
 				index = self.headers.index(column)
 			else:
 				raise Exception()
-		except:
-			raise Exception('column not found')
+		except Exception as exc:
+			raise Exception('column not found') from exc
 		return max([el[index] for el in self.dataset])

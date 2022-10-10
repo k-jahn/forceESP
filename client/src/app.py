@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
-# Entry point, scans for ForceESP and connects controller.
+"""Entry point, scans for ForceESP and connects controller"""
 
 import asyncio
 
 from bleak import BleakScanner
-from classes.ForceESP import ForceESP
-from classes.helpers.Colors import Colors
+from classes.forceESP import ForceESP
+from classes.helpers.colors import Colors
 
 c = Colors()
 
@@ -23,7 +23,7 @@ async def main():
 		"device": None
 	}
 
-	async def callback(device, advertisement):
+	async def callback(device, _advertisement):
 		if not found["event"].is_set():
 			found["device"] = device
 			found["event"].set()
@@ -37,7 +37,7 @@ async def main():
 			],
 			return_when=asyncio.FIRST_COMPLETED
 		)
-		if (found["event"].is_set()):
+		if found["event"].is_set():
 			print ('ForceESP found at', found["device"])
 			await scanner.stop()
 			forceESP = ForceESP(found["device"])

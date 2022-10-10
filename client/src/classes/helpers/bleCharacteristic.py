@@ -1,9 +1,10 @@
-# BLEChar helper class
-# 
-# enriches BleakCharacteristic with some syntactic sugar and less pain
+""" BLEChar helper class
+
+enriches BleakCharacteristic with some syntactic sugar and less pain"""
+
+from struct import pack, unpack
 
 from bleak import BleakClient
-from struct import pack, unpack
 
 class BLECharacteristic:
 	def __init__(self, client: BleakClient, uuid: str, charType: type=None) -> None:
@@ -11,7 +12,6 @@ class BLECharacteristic:
 		self.char = client.services.get_characteristic(uuid)
 		self.type = charType
 
-	# TODO handle data conversion
 	async def startNotify(self, callback):
 		def notifyCallback(_char, bleData: bytearray):
 			if self.type is float:
