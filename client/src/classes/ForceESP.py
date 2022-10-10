@@ -4,7 +4,6 @@
 
 import asyncio
 import traceback
-import struct
 from classes.helpers.Colors import Colors
 
 from time import time
@@ -16,6 +15,7 @@ from classes.helpers.BLECharacteristic import BLECharacteristic
 RECONNECT_ATTEMPTS = 5
 
 DEFAULT_MEASUREMENT_INTERVAL = 10
+MAX_MEASURMENT_INTERVAL = 600
 DEFAULT_MEASUREMENT_LABEL = 'measurement'
 DEFAULT_TARA_READINGS = 15
 
@@ -38,6 +38,7 @@ class ForceESP:
 	async def cmdMeasure(self, pInterval, *pars) -> None:
 		try:
 			interval = float(pInterval)
+			assert 0 < interval <= MAX_MEASURMENT_INTERVAL
 		except:
 			interval = DEFAULT_MEASUREMENT_INTERVAL
 
@@ -67,10 +68,10 @@ class ForceESP:
 		print(c.blue('monitor'))
 
 	# public ----------------------------------------------------------------------------------------------------------
-	async def startMeasure(self):
+	async def startESPMeasure(self):
 		await self.measureChar.writeValue(True)
 
-	async def stopMeasure(self):
+	async def stopESPMeasure(self):
 		await self.measureChar.writeValue(False)
 
 	# main loop -------------------------------------------------------------------------------------------------------

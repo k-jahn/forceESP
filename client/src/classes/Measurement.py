@@ -5,7 +5,6 @@
 
 import subprocess
 from datetime import datetime
-import asyncio
 from time import time
 from classes.helpers.Colors import Colors
 
@@ -32,18 +31,18 @@ class Measurement:
 		self.name = '_'.join([self.timestamp, self.label, str(self.index)])
 
 		print(c.blue('measuring, Δt=' + str(self.measurementInterval)))
-		await self.forceEsp.startMeasure()
+		await self.forceEsp.startESPMeasure()
 		while relativeTime <= self.measurementInterval:
+			await self.forceEsp.measureEvent.wait()
 			# start clock with first measurement
 			startTime = time() if startTime == None else startTime
-			await self.forceEsp.measureEvent.wait()
 			relativeTime = self.forceEsp.measureData["time"] - startTime
 			print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
 			self.dataset.append([
 				relativeTime,
 				self.forceEsp.measureData["force"],
 			])
-		await self.forceEsp.stopMeasure()
+		await self.forceEsp.stopESPMeasure()
 		print('done                      ')
 		return self
 
