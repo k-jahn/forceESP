@@ -1,8 +1,0 @@
-.vscode/
-client/measurements/
-client/bin/
-client/include/
-client/lib/
-client/lib64/
-client/share/
-**/__pycache__/
