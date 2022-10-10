@@ -37,18 +37,19 @@ class Measurement:
 		return self
 
 	def writeToFile(self):
-		self.fileName = '../measurements/' + self.timestamp + '.csv'
+		self.fileName = 'measurements/' + self.timestamp + '.csv'
 		file = open(self.fileName, 'x')
 		file.write(','.join(self.headers) + '\n')
 		for point in self.dataset:
 			file.write(','.join([str(value) for value in point]) + '\n')
 		file.close()
+		print('saved measurement to ' + self.fileName)
 		return self
 
 	def plot(self):
 		if (self.fileName == None): self.writeToFile()
 		subprocess.Popen([
-			'./plot.sh',
+			'./src/plot.sh',
 			self.fileName,
 			self.timestamp,
 			str(round(self.getPeak(), 2)),

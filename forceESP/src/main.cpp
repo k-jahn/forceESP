@@ -8,9 +8,7 @@ const int LOADCELL_DOUT_PIN = 21;
 
 // 2. Adjustment settings -- TODO Calibration
 const int TARA_INIT_READINGS = 10;
-const long LOADCELL_OFFSET = 1;
-const float LOADCELL_DIVIDER = 9072.6;
-// const float LOADCELL_DIVIDER = 1.0;
+const float LOADCELL_DIVIDER = 9072.6; // default cal
 
 // led pins
 const int taraLEDPin = 17;
@@ -132,8 +130,10 @@ void loop()
     }
     if (calibrateChar.written())
     {
-      Serial.print("\ncalibrating\n");
-      // TODO !
+      float divider = calibrateChar.value();
+      Serial.print("\ncalibrating: ");
+      Serial.println(divider);
+      loadcell.set_scale(divider);
     }
   }
   else

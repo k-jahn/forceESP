@@ -1,4 +1,6 @@
-# Main, searches for ForceESP and Connects controller.
+#!/usr/bin/python3
+
+# Entry point, scans for ForceESP and connects controller.
 
 import asyncio
 

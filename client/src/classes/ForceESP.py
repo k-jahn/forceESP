@@ -3,7 +3,6 @@
 # handles BLE communication, user input
 
 import asyncio
-from pickle import FALSE
 import traceback
 import struct
 from classes.helpers.Colors import Colors
@@ -26,15 +25,43 @@ FORCE_CHAR_UUID = '00000000-0000-0000-0000-000000001312'
 
 c = Colors()
 
-CMDS = "[tara, measure [int], exit]"
+CMDS = "[tara [n], measure [s], monitor, calibrate, exit]"
 
-# # helperrm
 class ForceESP:
-	def __init__(self, device):
+	def __init__(self, device) -> None:
 		self.device = device
 
+	# command functions -----------------------------------------------------------------------------------------------
+	async def measure(self, *pars) -> None:
+		try:
+			measurementInterval = float(pars[0])
+		except:
+			measurementInterval = DEFAULT_MEASUREMENT_INTERVAL
 
-	async def start(self):
+		measurement = Measurement(self, measurementInterval)
+
+		await self.measureChar.writeValue(True)
+		await measurement.start()
+		await self.measureChar.writeValue(False)
+
+		measurement.writeToFile().plot()
+		print('max:', round(measurement.getPeak('force'), 2))
+
+	async def tara(self, *pars) -> None:
+		taraReadings = int(pars[0]) if pars[0] else DEFAULT_TARA_READINGS
+		print(c.blue('Tara, n=' + str(taraReadings)))
+		await self.taraChar.writeValue(taraReadings)
+
+	# TODO - non-functional
+	async def calibrate(self, *pars) -> None:
+		print(c.blue('calibrating'))
+		await self.calibrateChar.writeValue(9072.6, float)
+
+	async def monitor(self, *pars) -> None:
+		print(c.blue('monitor'))
+
+	# main loop -------------------------------------------------------------------------------------------------------
+	async def start(self) -> None:
 		exit = False
 		attempts = 0
 		while (not exit and attempts < RECONNECT_ATTEMPTS):
@@ -45,10 +72,10 @@ class ForceESP:
 						# reset attempts
 						attempts = 0
 
-						taraChar = BLECharacteristic(client, TARA_CHAR_UUID)
-						calibrateChar = BLECharacteristic(client, CALIBRATE_CHAR_UUID)
-						measureChar = BLECharacteristic(client, MEASURE_CHAR_UUID)
-						forceChar = BLECharacteristic(client, FORCE_CHAR_UUID)
+						self.taraChar = BLECharacteristic(client, TARA_CHAR_UUID)
+						self.calibrateChar = BLECharacteristic(client, CALIBRATE_CHAR_UUID)
+						self.measureChar = BLECharacteristic(client, MEASURE_CHAR_UUID)
+						self.forceChar = BLECharacteristic(client, FORCE_CHAR_UUID)
 						print("Connected to ESP, enter command " + c.bold(CMDS))
 
 						# start force tracker
@@ -63,54 +90,43 @@ class ForceESP:
 							self.measureData["time"] = time()
 							self.measureEvent.set()
 							self.measureEvent.clear()
-						await forceChar.startNotify(forceCallback)
+						await self.forceChar.startNotify(forceCallback)
 
 						# user input loop
 						while (not exit):
 							inp = input(c.bold("forceESP@[") + c.yellow(client.address) + c.bold(']$ ')).split(' ')
-							inp.append('')
-							[cd, pr1] = inp[0:2]
-							try:
-								p1 = float(pr1)
-							except:
-								p1 = None
+							inp.extend([None for _ in range(2)])
+							[cd, *parameters] = inp[0:3]
 
 							# eval input
 							if cd == 'exit' or cd == 'x':
 								exit = True
 							elif cd == 'tara' or cd == 't':
-								taraReadings = int(p1) if p1 else DEFAULT_TARA_READINGS
-								print(c.blue('Tara, n=' + str(taraReadings)))
-								await taraChar.writeValue(taraReadings)
+								await self.tara(*parameters)
 							elif cd == 'measure' or cd == 'm':
-								measurementInterval = p1 if  p1 and p1 > 0 else DEFAULT_MEASUREMENT_INTERVAL
-								measurement = Measurement(self, measurementInterval)
-
-								await measureChar.writeValue(True)
-								await measurement.start()
-								await measureChar.writeValue(False)
-
-								measurement.writeToFile().plot()
-								print('max:', round(measurement.getPeak('force'), 2))
+								await self.measure(*parameters)
 							elif cd == 'monitor':
-								# TODO
-								pass
-							elif cd == 'calibrate':
-								# TODO
-								pass
+								await self.monitor(*parameters)
+							elif cd == 'calibrate' or cd == 'c':
+								await self.calibrate(*parameters)
 							else:
 								print(c.red('enter valid command ') + CMDS)
+
 						print(c.blue('Disconnecting...'))
-						await forceChar.stopNotify()
+						await self.forceChar.stopNotify()
+
+				# Handle General Exceptions
 				except Exception as e:
 					if True: # TODO: Filter connection errors
 						raise e
 					else:
 						# Do not reconnect in case of software error
 						print(c.red('Error'))
-						traceback.print_exc()
-						traceback.print_stack()
 						exit = True
+
+			# Handle Comm Exceptions
 			except Exception as e:
+				traceback.print_exc()
+				traceback.print_stack()
 				attempts += 1
 				print(c.red("Connection failed ") + '[' + str(attempts) + '/' + str(RECONNECT_ATTEMPTS) + ']')
