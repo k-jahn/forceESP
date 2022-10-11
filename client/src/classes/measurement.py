@@ -6,7 +6,12 @@ processing/analysis"""
 import subprocess
 from datetime import datetime
 from time import time
+from pathlib import Path
+
 from classes.helpers.colors import Colors
+
+MEASUREMENT_PATH = './measurements/'
+
 
 c = Colors()
 
@@ -51,13 +56,14 @@ class Measurement:
 		return self
 
 	def writeToFile(self):
-		self.fileName = 'measurements/' + self.name + '.csv'
+		Path(MEASUREMENT_PATH).mkdir(parents=True, exist_ok=True)
+		self.fileName = f'{MEASUREMENT_PATH}{self.name}.csv'
 		file = open(self.fileName, 'x', encoding='UTF-8')
 		file.write(','.join(self.headers) + '\n')
 		for point in self.dataset:
 			file.write(','.join([str(value) for value in point]) + '\n')
 		file.close()
-		print('saved measurement to ' + self.fileName)
+		print(f'saved measurement to {self.fileName}')
 		return self
 
 	def plot(self):

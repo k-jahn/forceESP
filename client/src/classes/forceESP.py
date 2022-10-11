@@ -4,6 +4,9 @@ handles BLE communication, user input"""
 
 import asyncio
 from time import time
+
+from pynput import keyboard
+
 from bleak import BleakClient
 from bleak.exc import BleakDBusError
 
@@ -25,7 +28,7 @@ FORCE_CHAR_UUID = '00000000-0000-0000-0000-000000001312'
 
 c = Colors()
 
-CMDS = "[tara [n], measure [s], monitor, calibrate, label [l], exit]"
+CMDS = '[tara [n], measure [s], monitor, calibrate, label [l], exit]'
 
 class ForceESP:
 	def __init__(self, device) -> None:
@@ -55,7 +58,7 @@ class ForceESP:
 		await measurement.run()
 
 		measurement.writeToFile().plot()
-		print('max:', round(measurement.getPeak('force'), 2))
+		print(f'max:{round(measurement.getPeak("force"), 2)}')
 		self.measurementIndex +=1
 
 	async def cmdLabel(self, label, *_pars):
@@ -65,16 +68,33 @@ class ForceESP:
 
 	async def cmdTara(self, *pars) -> None:
 		taraReadings = int(pars[0]) if pars[0] else DEFAULT_TARA_READINGS
-		print(c.blue('Tara, n=' + str(taraReadings)))
+		print(c.blue(f'Tara, n={taraReadings}'))
 		await self.taraChar.writeValue(taraReadings)
+
+	async def cmdMonitor(self, *_pars) -> None:
+		print(c.blue('monitoring, press any key to stop'))
+
+		# start keypress monitoring
+		keypressedEvent = asyncio.Event()
+		def onPress(_key):
+			keypressedEvent.set()
+		await self.startESPMeasure()
+		with keyboard.Listener(on_press=onPress) as listener:
+			# write values
+			while not keypressedEvent.is_set():
+				await self.measureEvent.wait()
+				val = round(self.measureData["force"], 2)
+				output = c.bold(f'{val} kg * ge             '.format())
+				print(output, end='\r')
+			listener.stop()
+			print('\n')
+		await self.stopESPMeasure()
+		print('stopped')
 
 	# TODO - non-functional
 	async def cmdCalibrate(self, *_pars) -> None:
 		print(c.blue('calibrating'))
 		await self.calibrateChar.writeValue(9072.6, float)
-
-	async def cmdMonitor(self, *_pars) -> None:
-		print(c.blue('monitor'))
 
 	# public --------------------------------------------------------------------------------------
 	async def startESPMeasure(self):
@@ -98,7 +118,7 @@ class ForceESP:
 					self.calibrateChar = BLECharacteristic(client, CALIBRATE_CHAR_UUID, float)
 					self.measureChar = BLECharacteristic(client, MEASURE_CHAR_UUID, bool)
 					self.forceChar = BLECharacteristic(client, FORCE_CHAR_UUID, float)
-					print("Connected to ESP, enter command " + c.bold(CMDS))
+					print(f"Connected to ESP, enter command {c.bold(CMDS)}")
 
 					def forceCallback(force):
 						self.measureData["force"] = force
@@ -140,4 +160,4 @@ class ForceESP:
 			# Handle Comm Exceptions
 			except BleakDBusError as _exception:
 				attempts += 1
-				print(c.red("Connection failed ") + '[' + str(attempts) + '/' + str(RECONNECT_ATTEMPTS) + ']')
+				print(c.red("Connection failed ") + f'[{attempts}/{RECONNECT_ATTEMPTS}]')

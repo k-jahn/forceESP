@@ -1,3 +1,7 @@
 async-timeout==4.0.2
 bleak==0.18.1
 dbus-fast==1.17.0
+evdev==1.6.0
+pynput==1.7.6
+python-xlib==0.31
+six==1.16.0
