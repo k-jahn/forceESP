@@ -5,8 +5,8 @@
 import asyncio
 
 from bleak import BleakScanner
-from classes.forceESP import ForceESP
-from classes.helpers.colors import Colors
+from classes import ForceESP
+from classes.helpers import Colors
 
 c = Colors()
 

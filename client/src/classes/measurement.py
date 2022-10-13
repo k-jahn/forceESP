@@ -16,10 +16,10 @@ MEASUREMENT_PATH = './measurements/'
 c = Colors()
 
 class Measurement:
-	def __init__(self, forceEsp, measurementInterval: float, label: str, index: int) -> None:
+	def __init__(self, forceEsp, measurementInterval: float, label: str, subject: str) -> None:
 		self.measurementInterval = measurementInterval
 		self.label = label
-		self.index = index
+		self.subject = subject
 		self.headers = ['time', 'force']
 		self.dataset = []
 		self.forceEsp = forceEsp
@@ -37,7 +37,7 @@ class Measurement:
 		relativeTime = 0
 		startTime = None
 		self.timestamp = str(datetime.now()).replace(' ', '_')
-		self.name = '_'.join([self.timestamp, self.label, str(self.index)])
+		self.name = '_'.join([self.timestamp, self.label])
 
 		print(c.blue('measuring, Δt=' + str(self.measurementInterval)))
 		await self.forceEsp.startESPMeasure()
@@ -56,8 +56,9 @@ class Measurement:
 		return self
 
 	def writeToFile(self):
-		Path(MEASUREMENT_PATH).mkdir(parents=True, exist_ok=True)
-		self.fileName = f'{MEASUREMENT_PATH}{self.name}.csv'
+		path = f'{MEASUREMENT_PATH}{self.subject}/' if self.subject is not None else MEASUREMENT_PATH
+		Path(path).mkdir(parents=True, exist_ok=True)
+		self.fileName = f'{path}{self.name}.csv'
 		file = open(self.fileName, 'x', encoding='UTF-8')
 		file.write(','.join(self.headers) + '\n')
 		for point in self.dataset:

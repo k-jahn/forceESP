@@ -3,6 +3,7 @@
 handles BLE communication, user input"""
 
 import asyncio
+import re
 from time import time
 
 from pynput import keyboard
@@ -10,15 +11,16 @@ from pynput import keyboard
 from bleak import BleakClient
 from bleak.exc import BleakDBusError
 
-from classes.helpers.colors import Colors
-from classes.measurement import Measurement
-from classes.helpers.bleCharacteristic import BLECharacteristic
+from classes import Measurement
+from classes.helpers import BLECharacteristic
+from classes.helpers import Colors
 
 RECONNECT_ATTEMPTS = 5
 
 DEFAULT_MEASUREMENT_INTERVAL = 10
 MAX_MEASURMENT_INTERVAL = 600
-DEFAULT_MEASUREMENT_LABEL = 'measurement'
+DEFAULT_LABEL = 'measurement'
+DEFAULT_SUBJECT = 'default'
 DEFAULT_TARA_READINGS = 15
 
 TARA_CHAR_UUID = '00000000-0000-0000-0000-000000001001'
@@ -38,8 +40,8 @@ class ForceESP:
 			"time": time(),
 			"force": 0,
 		}
-		self.measurementLabel = DEFAULT_MEASUREMENT_LABEL
-		self.measurementIndex = 1
+		self.label = DEFAULT_LABEL
+		self.subject = DEFAULT_SUBJECT
 
 		self.taraChar: BLECharacteristic
 		self.calibrateChar: BLECharacteristic
@@ -54,20 +56,25 @@ class ForceESP:
 		except:
 			interval = DEFAULT_MEASUREMENT_INTERVAL
 
-		measurement = Measurement(self, interval, self.measurementLabel, self.measurementIndex)
+		measurement = Measurement(
+			self,
+			interval,
+			self.label,
+			self.subject
+		)
 		await measurement.run()
 
 		measurement.writeToFile().plot()
 		print(f'max:{round(measurement.getPeak("force"), 2)}')
-		self.measurementIndex +=1
 
-	async def cmdLabel(self, label, *_pars):
-		if label is not None and label != self.measurementLabel:
-			self.measurementLabel = label
-			self.measurementIndex = 1
+	async def cmdLabel(self, label, subject, *_pars):
+		if label is not None and label != self.label:
+			self.label = label
+		if subject is not None:
+			self.subject = subject
 
-	async def cmdTara(self, *pars) -> None:
-		taraReadings = int(pars[0]) if pars[0] else DEFAULT_TARA_READINGS
+	async def cmdTara(self, readings, *_pars) -> None:
+		taraReadings = int(readings) if readings is not None else DEFAULT_TARA_READINGS
 		print(c.blue(f'Tara, n={taraReadings}'))
 		await self.taraChar.writeValue(taraReadings)
 
@@ -129,14 +136,17 @@ class ForceESP:
 
 					# user input loop
 					while not exitRequested:
+						label = ':'.join([self.label, self.subject])
 						prompt = ''.join([
-							c.bold(self.measurementLabel + '@['),
+							c.bold(label + '@['),
 							c.yellow(client.address),
 							c.bold(']$ '),
 						])
-						inp = input(prompt).split(' ')
-						inp.extend([None for _ in range(2)])
-						[command, *parameters] = inp[0:3]
+						inpRaw = input(prompt)
+						inp  = re.split(r'\s+', inpRaw)
+						# pad empty input arguments
+						inp.extend([None for _ in range(3 - len(inp))])
+						[command, *parameters] = inp
 
 						# eval input
 						if command == 'exit' or command == 'x':
@@ -145,7 +155,7 @@ class ForceESP:
 							await self.cmdTara(*parameters)
 						elif command == 'measure' or command == 'm':
 							await self.cmdMeasure(*parameters)
-						elif command == 'monitor':
+						elif command == 'monitor' or command == 'o':
 							await self.cmdMonitor(*parameters)
 						elif command == 'calibrate' or command == 'c':
 							await self.cmdCalibrate(*parameters)
