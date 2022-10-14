@@ -12,7 +12,7 @@ A PC client controls measuring and stores, organizes and visualizes the resultin
 * Elseif ESP32 Microcontroller Dev board
 * status LEDs
 * HX711 amplifier/adc
-* S-load cell (YZC-516C 500kg)
+* S-load cell (YZC-516C 500kg, but any other with the right range should work)
 
 TODO: Circuit diagramm, pretty self-expanitory though
 
@@ -20,7 +20,7 @@ TODO: Circuit diagramm, pretty self-expanitory though
 
 ### ESP Firmare
 
-Written in C++ for PlatformIO. Use PlatformIO ([documentation|https://docs.platformio.org/en/latest/]) to install dependencies and set up the serial bus connection to an ESP32 board.
+Written in C++ for PlatformIO. Use PlatformIO ([documentation](https://docs.platformio.org/en/latest/)) to install dependencies and set up the serial bus connection to an ESP32 board.
 
 ### Client
 
@@ -28,7 +28,7 @@ Written in python. Use
 
 ```$ pip install -r requirements.txt``` to install Python dependencies
 
-Also requires a bash shell and gnuplot for data visualization. (Hopefully to be replaced by GUI)
+Also requires a bash shell and gnuplot ([documentation](http://www.gnuplot.info/documentation.html)) for data visualization. (Hopefully to be replaced by GUI)
 
 ## TODO
 
