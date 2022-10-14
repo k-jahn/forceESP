@@ -85,14 +85,13 @@ class ForceESP:
 		def onPress(_key):
 			keypressedEvent.set()
 		await self.startESPMeasure()
-		with keyboard.Listener(on_press=onPress) as listener:
+		with keyboard.Listener(on_press=onPress) as _listener:
 			# write values
 			while not keypressedEvent.is_set():
 				await self.measureEvent.wait()
 				val = round(self.measureData["force"], 2)
 				output = clr.bold(f'{val} kg * ge             ')
 				print(output, end='\r')
-			listener.stop()
 			print('\n')
 		await self.stopESPMeasure()
 		print('stopped')

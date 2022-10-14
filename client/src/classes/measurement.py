@@ -3,10 +3,13 @@
 filesystem i/o
 processing/analysis"""
 
+import asyncio
 import subprocess
 from datetime import datetime
 from time import time
 from pathlib import Path
+
+from pynput import keyboard
 
 from classes.helpers import clr
 
@@ -38,18 +41,27 @@ class Measurement:
 		self.timestamp = str(datetime.now()).replace(' ', '_')
 		self.name = '_'.join([self.timestamp, self.label])
 
-		print(clr.blue('measuring, Δt=' + str(self.measurementInterval)))
+		print(clr.blue(f'measuring, Δt={self.measurementInterval}, press c to cancel'))
+
+		# start keypress monitoring
+		keypressedEvent = asyncio.Event()
+		def onPress(key):
+			print('\n')
+			print(key)
+			if key == 'c':
+				keypressedEvent.set()
 		await self.forceEsp.startESPMeasure()
-		while relativeTime <= self.measurementInterval:
-			await self.forceEsp.measureEvent.wait()
-			# start clock with first measurement
-			startTime = time() if startTime is None else startTime
-			relativeTime = self.forceEsp.measureData["time"] - startTime
-			print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
-			self.dataset.append([
-				relativeTime,
-				self.forceEsp.measureData["force"],
-			])
+		with keyboard.Listener(on_press=onPress) as _listener:
+			while relativeTime <= self.measurementInterval and not keypressedEvent.is_set():
+				await self.forceEsp.measureEvent.wait()
+				# start clock with first measurement
+				startTime = time() if startTime is None else startTime
+				relativeTime = self.forceEsp.measureData["time"] - startTime
+				print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
+				self.dataset.append([
+					relativeTime,
+					self.forceEsp.measureData["force"],
+				])
 		await self.forceEsp.stopESPMeasure()
 		print('done                      ')
 		return self
