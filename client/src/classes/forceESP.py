@@ -13,23 +13,22 @@ from bleak.exc import BleakDBusError
 
 from classes import Measurement
 from classes.helpers import BLECharacteristic
-from classes.helpers import Colors
+from classes.helpers import clr
 
-RECONNECT_ATTEMPTS = 5
+from constants import (
+	RECONNECT_ATTEMPTS,
+	DEFAULT_MEASUREMENT_INTERVAL,
+	MAX_MEASURMENT_INTERVAL,
+	DEFAULT_LABEL,
+	DEFAULT_SUBJECT,
+	DEFAULT_TARA_READINGS,
+	TARA_CHAR_UUID,
+	CALIBRATE_CHAR_UUID,
+	MEASURE_CHAR_UUID,
+	FORCE_CHAR_UUID,
+)
 
-DEFAULT_MEASUREMENT_INTERVAL = 10
-MAX_MEASURMENT_INTERVAL = 600
-DEFAULT_LABEL = 'measurement'
-DEFAULT_SUBJECT = 'default'
-DEFAULT_TARA_READINGS = 15
-
-TARA_CHAR_UUID = '00000000-0000-0000-0000-000000001001'
-CALIBRATE_CHAR_UUID = '00000000-0000-0000-0000-000000001002'
-MEASURE_CHAR_UUID = '00000000-0000-0000-0000-000000001003'
-FORCE_CHAR_UUID = '00000000-0000-0000-0000-000000001312'
-
-c = Colors()
-
+# TODO This sucks. Command objects?
 CMDS = '[tara [n], measure [s], monitor, calibrate, label [l], exit]'
 
 class ForceESP:
@@ -75,11 +74,11 @@ class ForceESP:
 
 	async def cmdTara(self, readings, *_pars) -> None:
 		taraReadings = int(readings) if readings is not None else DEFAULT_TARA_READINGS
-		print(c.blue(f'Tara, n={taraReadings}'))
+		print(clr.blue(f'Tara, n={taraReadings}'))
 		await self.taraChar.writeValue(taraReadings)
 
 	async def cmdMonitor(self, *_pars) -> None:
-		print(c.blue('monitoring, press any key to stop'))
+		print(clr.blue('monitoring, press any key to stop'))
 
 		# start keypress monitoring
 		keypressedEvent = asyncio.Event()
@@ -91,7 +90,7 @@ class ForceESP:
 			while not keypressedEvent.is_set():
 				await self.measureEvent.wait()
 				val = round(self.measureData["force"], 2)
-				output = c.bold(f'{val} kg * ge             '.format())
+				output = clr.bold(f'{val} kg * ge             ')
 				print(output, end='\r')
 			listener.stop()
 			print('\n')
@@ -100,7 +99,7 @@ class ForceESP:
 
 	# TODO - non-functional
 	async def cmdCalibrate(self, *_pars) -> None:
-		print(c.blue('calibrating'))
+		print(clr.blue('calibrating'))
 		await self.calibrateChar.writeValue(9072.6, float)
 
 	# public --------------------------------------------------------------------------------------
@@ -116,7 +115,7 @@ class ForceESP:
 		attempts = 0
 		while (not exitRequested and attempts < RECONNECT_ATTEMPTS):
 			try:
-				print(c.blue('Connecting to ESP...'))
+				print(clr.blue('Connecting to ESP...'))
 				async with BleakClient(self.device) as client:
 					# reset attempts
 					attempts = 0
@@ -125,7 +124,7 @@ class ForceESP:
 					self.calibrateChar = BLECharacteristic(client, CALIBRATE_CHAR_UUID, float)
 					self.measureChar = BLECharacteristic(client, MEASURE_CHAR_UUID, bool)
 					self.forceChar = BLECharacteristic(client, FORCE_CHAR_UUID, float)
-					print(f"Connected to ESP, enter command {c.bold(CMDS)}")
+					print(f"Connected to ESP, enter command {clr.bold(CMDS)}")
 
 					def forceCallback(force):
 						self.measureData["force"] = force
@@ -138,9 +137,9 @@ class ForceESP:
 					while not exitRequested:
 						label = ':'.join([self.label, self.subject])
 						prompt = ''.join([
-							c.bold(label + '@['),
-							c.yellow(client.address),
-							c.bold(']$ '),
+							clr.bold(label + '@['),
+							clr.yellow(client.address),
+							clr.bold(']$ '),
 						])
 						inpRaw = input(prompt)
 						inp  = re.split(r'\s+', inpRaw)
@@ -162,12 +161,12 @@ class ForceESP:
 						elif command == 'label' or command == 'l':
 							await self.cmdLabel(*parameters)
 						else:
-							print(c.red('enter valid command ') + CMDS)
+							print(clr.red('enter valid command ') + CMDS)
 
-					print(c.blue('Disconnecting...'))
+					print(clr.blue('Disconnecting...'))
 					await self.forceChar.stopNotify()
 
 			# Handle Comm Exceptions
 			except BleakDBusError as _exception:
 				attempts += 1
-				print(c.red("Connection failed ") + f'[{attempts}/{RECONNECT_ATTEMPTS}]')
+				print(clr.red("Connection failed ") + f'[{attempts}/{RECONNECT_ATTEMPTS}]')

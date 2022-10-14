@@ -6,16 +6,13 @@ import asyncio
 
 from bleak import BleakScanner
 from classes import ForceESP
-from classes.helpers import Colors
+from classes.helpers import clr
 
-c = Colors()
-
-CONTROL_SERVICE_UUID = '00000000-0000-0000-0000-000000cd1102'
-FORCE_SERVICE_UUID = '00000000-0000-0000-0000-0000fce04277'
-
-SERVICE_UUIDS = [CONTROL_SERVICE_UUID, FORCE_SERVICE_UUID]
-
-TIMEOUT = 5
+from constants import (
+	CONTROL_SERVICE_UUID,
+	FORCE_SERVICE_UUID,
+	BLE_SCAN_TIMEOUT,
+)
 
 async def main():
 	found = {
@@ -28,12 +25,12 @@ async def main():
 			found["device"] = device
 			found["event"].set()
 
-	print(c.blue('Searching BLE...'))
-	async with BleakScanner(callback, SERVICE_UUIDS) as scanner:
+	print(clr.blue('Searching BLE...'))
+	async with BleakScanner(callback, [CONTROL_SERVICE_UUID, FORCE_SERVICE_UUID]) as scanner:
 		await asyncio.wait(
 			[
 				found["event"].wait(),
-				asyncio.sleep(TIMEOUT)
+				asyncio.sleep(BLE_SCAN_TIMEOUT)
 			],
 			return_when=asyncio.FIRST_COMPLETED
 		)
@@ -43,6 +40,6 @@ async def main():
 			forceESP = ForceESP(found["device"])
 			await forceESP.start()
 		else:
-			print(c.red('No ForceESP found'))
+			print(clr.red('No ForceESP found'))
 
 asyncio.run(main())

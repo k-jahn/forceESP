@@ -8,12 +8,11 @@ from datetime import datetime
 from time import time
 from pathlib import Path
 
-from classes.helpers.colors import Colors
+from classes.helpers import clr
 
-MEASUREMENT_PATH = './measurements/'
-
-
-c = Colors()
+from constants import (
+	MEASUREMENT_BASE_PATH
+)
 
 class Measurement:
 	def __init__(self, forceEsp, measurementInterval: float, label: str, subject: str) -> None:
@@ -39,7 +38,7 @@ class Measurement:
 		self.timestamp = str(datetime.now()).replace(' ', '_')
 		self.name = '_'.join([self.timestamp, self.label])
 
-		print(c.blue('measuring, Δt=' + str(self.measurementInterval)))
+		print(clr.blue('measuring, Δt=' + str(self.measurementInterval)))
 		await self.forceEsp.startESPMeasure()
 		while relativeTime <= self.measurementInterval:
 			await self.forceEsp.measureEvent.wait()
@@ -56,7 +55,7 @@ class Measurement:
 		return self
 
 	def writeToFile(self):
-		path = f'{MEASUREMENT_PATH}{self.subject}/' if self.subject is not None else MEASUREMENT_PATH
+		path = f'{MEASUREMENT_BASE_PATH}{self.subject}/'
 		Path(path).mkdir(parents=True, exist_ok=True)
 		self.fileName = f'{path}{self.name}.csv'
 		file = open(self.fileName, 'x', encoding='UTF-8')
@@ -64,7 +63,7 @@ class Measurement:
 		for point in self.dataset:
 			file.write(','.join([str(value) for value in point]) + '\n')
 		file.close()
-		print(f'saved measurement to {self.fileName}')
+		print(f'saved measurement to {clr.yellow(self.fileName)}')
 		return self
 
 	def plot(self):
