@@ -55,13 +55,14 @@ class ForceESP:
 		except:
 			interval = DEFAULT_MEASUREMENT_INTERVAL
 
-		measurement = Measurement(
+		measurement = Measurement()
+
+		await measurement.run(
 			self,
 			interval,
 			self.label,
 			self.subject
 		)
-		await measurement.run()
 
 		measurement.writeToFile().plot()
 		print(f'max:{round(measurement.getPeak("force"), 2)}')

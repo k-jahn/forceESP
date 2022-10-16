@@ -3,13 +3,11 @@
 filesystem i/o
 processing/analysis"""
 
-import asyncio
 import subprocess
+import json
 from datetime import datetime
 from time import time
 from pathlib import Path
-
-from pynput import keyboard
 
 from classes.helpers import clr
 
@@ -18,72 +16,83 @@ from constants import (
 )
 
 class Measurement:
-	def __init__(self, forceEsp, measurementInterval: float, label: str, subject: str) -> None:
-		self.measurementInterval = measurementInterval
-		self.label = label
-		self.subject = subject
+	# TODO: add possiblity of getting measurement from file
+	def __init__(self) -> None:
+		self.measurementInterval: float
+		self.label: str
+		self.subject: str
 		self.headers = ['time', 'force']
 		self.dataset = []
-		self.forceEsp = forceEsp
-		self.hasRun = False
 
 		self.name: str
 		self.timestamp: str
-		self.fileName: str
+		self.fileNameCSV: str
+		self.fileNameJSON: str
 
 	# gathers data from forceEsp
-	async def run(self) -> None:
-		assert not self.hasRun
-		self.hasRun = True
+	async def run(self, forceEsp, measurementInterval: float, label: str, subject: str) -> None:
+		self.measurementInterval = measurementInterval
+		self.label = label
+		self.subject = subject
+		assert len(self.dataset) == 0
 
 		relativeTime = 0
 		startTime = None
 		self.timestamp = str(datetime.now()).replace(' ', '_')
 		self.name = '_'.join([self.timestamp, self.label])
 
-		print(clr.blue(f'measuring, Δt={self.measurementInterval}, press c to cancel'))
-
-		# start keypress monitoring
-		keypressedEvent = asyncio.Event()
-		def onPress(key):
-			print('\n')
-			print(key)
-			if key == 'c':
-				keypressedEvent.set()
-		await self.forceEsp.startESPMeasure()
-		with keyboard.Listener(on_press=onPress) as _listener:
-			while relativeTime <= self.measurementInterval and not keypressedEvent.is_set():
-				await self.forceEsp.measureEvent.wait()
-				# start clock with first measurement
-				startTime = time() if startTime is None else startTime
-				relativeTime = self.forceEsp.measureData["time"] - startTime
-				print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
-				self.dataset.append([
-					relativeTime,
-					self.forceEsp.measureData["force"],
-				])
-		await self.forceEsp.stopESPMeasure()
+		print(clr.blue(f'measuring, Δt={self.measurementInterval}'))
+		await forceEsp.startESPMeasure()
+		while relativeTime <= self.measurementInterval:
+			await forceEsp.measureEvent.wait()
+			# start clock with first measurement
+			startTime = time() if startTime is None else startTime
+			relativeTime = forceEsp.measureData["time"] - startTime
+			print(round(relativeTime, 2), '/', self.measurementInterval, '     ', end="\r")
+			self.dataset.append([
+				relativeTime,
+				forceEsp.measureData["force"],
+			])
+		await forceEsp.stopESPMeasure()
 		print('done                      ')
 		return self
 
 	def writeToFile(self):
 		path = f'{MEASUREMENT_BASE_PATH}{self.subject}/'
 		Path(path).mkdir(parents=True, exist_ok=True)
-		self.fileName = f'{path}{self.name}.csv'
-		file = open(self.fileName, 'x', encoding='UTF-8')
+		self.fileNameCSV = f'{path}{self.name}.csv'
+		self.fileNameJSON = f'{path}{self.name}.json'
+
+		# csv - TODO remove once gnuplot removed
+		file = open(self.fileNameCSV, 'x', encoding='UTF-8')
 		file.write(','.join(self.headers) + '\n')
 		for point in self.dataset:
 			file.write(','.join([str(value) for value in point]) + '\n')
 		file.close()
-		print(f'saved measurement to {clr.yellow(self.fileName)}')
+
+		# json
+		file = open(self.fileNameJSON, 'x', encoding='UTF-8')
+		jsonData = {
+			"subject": self.subject,
+			"label": self.label,
+			"timestamp": self.timestamp,
+			"interval": self.measurementInterval,
+			"f_max": self.getPeak(),
+			"datasetHeaders": self.headers,
+			"dataset": self.dataset,
+		}
+		json.dump(jsonData, file)
+		file.close()
+
+		print(f'saved measurement to {clr.yellow(self.fileNameJSON)}')
 		return self
 
 	def plot(self):
-		if self.fileName is None:
+		if self.fileNameCSV is None:
 			self.writeToFile()
 		subprocess.Popen([
 			'./src/plot.sh',
-			self.fileName,
+			self.fileNameCSV,
 			self.name.replace('_', ' '),
 			str(round(self.getPeak(), 2)),
 			str(self.measurementInterval),
