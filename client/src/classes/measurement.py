@@ -16,7 +16,6 @@ from constants import (
 )
 
 class Measurement:
-	# TODO: add possiblity of getting measurement from file
 	def __init__(self) -> None:
 		self.measurementInterval: float
 		self.label: str
@@ -57,6 +56,21 @@ class Measurement:
 		print('done                      ')
 		return self
 
+	def fromFile(self, fileName: str):
+		jsonData: dict
+		with open(fileName, encoding='UTF-8') as file:
+			file.read()
+			jsonData = json.load(file.read())
+			file.close()
+		self.subject = jsonData["subject"]
+		self.label = jsonData["label"]
+		self.timestamp = jsonData["timestamp"]
+		self.measurementInterval = jsonData["interval"]
+		self.headers = jsonData["datasetHeaders"]
+		self.dataset = jsonData["dataset"]
+		self.fileNameJSON = fileName
+		return self
+
 	def writeToFile(self):
 		path = f'{MEASUREMENT_BASE_PATH}{self.subject}/'
 		Path(path).mkdir(parents=True, exist_ok=True)
@@ -64,25 +78,25 @@ class Measurement:
 		self.fileNameJSON = f'{path}{self.name}.json'
 
 		# csv - TODO remove once gnuplot removed
-		file = open(self.fileNameCSV, 'x', encoding='UTF-8')
-		file.write(','.join(self.headers) + '\n')
-		for point in self.dataset:
-			file.write(','.join([str(value) for value in point]) + '\n')
-		file.close()
+		with open(self.fileNameCSV, 'x', encoding='UTF-8') as file:
+			file.write(','.join(self.headers) + '\n')
+			for point in self.dataset:
+				file.write(','.join([str(value) for value in point]) + '\n')
+			file.close()
 
 		# json
-		file = open(self.fileNameJSON, 'x', encoding='UTF-8')
-		jsonData = {
-			"subject": self.subject,
-			"label": self.label,
-			"timestamp": self.timestamp,
-			"interval": self.measurementInterval,
-			"f_max": self.getPeak(),
-			"datasetHeaders": self.headers,
-			"dataset": self.dataset,
-		}
-		json.dump(jsonData, file)
-		file.close()
+		with open(self.fileNameJSON, 'x', encoding='UTF-8') as file:
+			jsonData = {
+				"subject": self.subject,
+				"label": self.label,
+				"timestamp": self.timestamp,
+				"interval": self.measurementInterval,
+				"f_max": self.getPeak(),
+				"datasetHeaders": self.headers,
+				"dataset": self.dataset,
+			}
+			json.dump(jsonData, file)
+			file.close()
 
 		print(f'saved measurement to {clr.yellow(self.fileNameJSON)}')
 		return self
